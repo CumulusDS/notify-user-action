@@ -34,6 +34,10 @@ inputs:
   slack_webhook:
     description: "Slack webhook"
     required: true
+  slack_color:
+    description: "color on the side of the message"
+    default: ${{ job.status }}
+    required: false
 outputs:
   user:
     description: "github actor"
@@ -69,11 +73,11 @@ runs:
         SLACK_USERNAME: "${{ steps.map-id.outputs.repo }}"
         SLACK_ICON: "${{ inputs.icon }}"
         SLACK_ICON_EMOJI: "${{ inputs.emoji }}"
-        SLACK_COLOR: ${{ job.status }}
+        SLACK_COLOR: "${{ inputs.slack_color }}"
         MSG_MINIMAL: true
         SLACK_TITLE: "${{ inputs.title }}"
         SLACK_MESSAGE: |
-          Hello <@$${{ steps.map-id.outputs.user }}>,
+          Hello <@${{ steps.map-id.outputs.user }}>,
           Removal of your stack in `${{ inputs.region }}` has failed!
           ${{ inputs.service }}-${{ inputs.stage }}
         SLACK_FOOTER: ""
