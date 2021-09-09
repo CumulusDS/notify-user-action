@@ -58,10 +58,7 @@ runs:
     - name: map userid
       id: map-id
       run: |
-        userId=$(cat var/slack/slack.json | jq -r --arg user "${GITHUB_ACTOR}" '.users[] | select(.github | try contains($user)) | .slack')
-        echo "debug - userId: $userId"
-        userIdFromInput=$(cat var/slack/slack.json | jq -r --arg user "${{ inputs.actor }}" '.users[] | select(.github | try contains($user)) | .slack')
-        echo "debug - userIdFromInput: $userIdFromInput"
+        userId=$(cat var/slack/slack.json | jq -r --arg user "${{ inputs.actor }}" '.users[] | select(.github | try contains($user)) | .slack')
         echo "::set-output name=user::${userId}"
         echo "::set-output name=repo::$((echo ${{ github.repository }}) | sed 's/^..........//')"
       shell: bash
@@ -72,6 +69,14 @@ runs:
           -L https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} | jq -r '.check_suite_id'
         )
         echo "GITHUB_CHECK_SUITE_ID: $GITHUB_CHECK_SUITE_ID"
+        echo "GITHUB_RUN_ID ${GITHUB_RUN_ID}"
+        RUN_CONTEXT=$( \
+          curl -s -H 'Authorization: token ${{ inputs.token }}' \
+          -L https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} \
+        )
+        echo "::group::Run context"
+        echo $CONTEXT | jq '.'
+        echo "::endgroup::"
       shell: bash
     - name: Notify on failure
       id: notify-on-failure
