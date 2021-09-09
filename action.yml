@@ -81,9 +81,9 @@ runs:
         echo ${JOBS} | jq -r '.'
         echo "::endgroup::"
 
-        info=$(
-          echo $JOBS | jq '.jobs[] | {name: .name, status: .status, conclusion: .conclusion, url: .html_url start: .started_at, steps: .steps}' \
-          | jq -s '.'
+        info=$( \
+          echo $JOBS | jq '.jobs[] | {name: .name, status: .status, conclusion: .conclusion, url: .html_url}' \
+          | jq -s '.' \
         )
         results=$(echo $info | jq -r '.')
         echo "::group::Jobs context (refined)"
