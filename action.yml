@@ -68,15 +68,25 @@ runs:
           curl -s -H 'Authorization: token ${{ inputs.token }}' \
           -L https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} | jq -r '.check_suite_id'
         )
+
         echo "GITHUB_CHECK_SUITE_ID: $GITHUB_CHECK_SUITE_ID"
         echo "GITHUB_RUN_ID ${GITHUB_RUN_ID}"
         echo "GITHUB_RUN_NUMBER ${GITHUB_RUN_NUMBER}"
+
         RUN_CONTEXT=$( \
           curl -s -H 'Authorization: token ${{ inputs.token }}' \
           -L https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} \
         )
         echo "::group::Run context"
-        echo $CONTEXT | jq '.'
+        echo ${CONTEXT} | jq -r '.'
+        echo "::endgroup::"
+
+        JOBS=$( \
+          curl -s -H 'Authorization: token ${{ inputs.token }}' \
+          -L https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs \
+        )
+        echo "::group::Job context (complete)"
+        echo ${JOBS} | jq -r '.'
         echo "::endgroup::"
       shell: bash
     - name: Notify on failure
