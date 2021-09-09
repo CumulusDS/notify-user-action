@@ -63,6 +63,7 @@ runs:
         echo "::set-output name=repo::$((echo ${{ github.repository }}) | sed 's/^..........//')"
       shell: bash
     - name: debug
+      id: debug
       run: |
         GITHUB_CHECK_SUITE_ID=$( \
           curl -s -H 'Authorization: token ${{ inputs.token }}' \
@@ -82,12 +83,21 @@ runs:
         echo "::endgroup::"
 
         info=$( \
-          echo $JOBS | jq '.jobs[] | {name: .name, status: .status, conclusion: .conclusion, url: .html_url}' \
+          echo $JOBS | jq '.jobs[] | {name: .name, status: .status, conclusion: .conclusion, url: .html_url, steps: .steps}' \
           | jq -s '.' \
         )
         results=$(echo $info | jq -r '.')
         echo "::group::Jobs context (refined)"
         echo ${results} | jq -r '.'
+        echo "::endgroup::"
+
+        echo "::group::Get job URL"
+        echo ${results} | jq -r --arg region ${{ inputs.region }} '.[] | select(.name | try contains($region)) | .html_url'
+        url=$( \
+          echo ${results} | \
+          jq -r --arg region ${{ inputs.region }} '.[] | select(.name | try contains($region)) | .html_url')
+        echo $url
+        echo "::set-output name=url::${url}"
         echo "::endgroup::"
       shell: bash
     - name: Notify on failure
@@ -104,6 +114,6 @@ runs:
         SLACK_MESSAGE: |
           Hello <@${{ steps.map-id.outputs.user }}>,
           Removal of your stack in `${{ inputs.region }}` has failed!
-          ${{ inputs.service }}-${{ inputs.stage }}
+          <${{ steps.debug.outputs.url }}|${{ inputs.service }}-${{ inputs.stage }}>
         SLACK_FOOTER: ""
         SLACK_WEBHOOK: ${{ inputs.slack_webhook }}
