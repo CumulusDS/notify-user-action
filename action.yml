@@ -65,6 +65,14 @@ runs:
         echo "::set-output name=user::${userId}"
         echo "::set-output name=repo::$((echo ${{ github.repository }}) | sed 's/^..........//')"
       shell: bash
+    - name: debug
+      run: |
+        GITHUB_CHECK_SUITE_ID=$( \
+          curl -s -H 'Authorization: token ${{ inputs.token }}' \
+          -L https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} | jq -r '.check_suite_id'
+        )
+        echo "GITHUB_CHECK_SUITE_ID: $GITHUB_CHECK_SUITE_ID"
+      shell: bash
     - name: Notify on failure
       id: notify-on-failure
       uses: rtCamp/action-slack-notify@v2
