@@ -1,26 +1,105 @@
-name: 'action-template'
-description: 'description'
+name: 'Notify User in Slack'
+description: 'Composite Action for slack notification'
 inputs:
-  input:
-    description: 'description'
+  token:
+    description: "Token with API access"
+    required: true
+  actor:
+    description: "Github user to notify in slack"
     required: false
-    default: ''
+    default: ${GITHUB_ACTOR}
+  service:
+    description: "The service being deployed/removed"
+    required: true
+  stage:
+    description: "The stage being deployed/removed"
+    required: true
+    default: ${{ matrix.stage }}
+  region:
+    description: "The region the action is being performed in"
+    required: true
+    default: ${{ matrix.region }}
+  icon:
+    description: "Custom icon for slack message"
+    required: false
+    default: "https://upload.wikimedia.org/wikipedia/commons/0/05/HONDA_ASIMO.jpg"
+  emoji:
+    description: "Slack emoji to accompany message"
+    required: false
+    default: ":dumpsterfire:"
+  title:
+    description: "Slack message title"
+    required: false
+    default: "Feature stack removal failed!"
+  slack_webhook:
+    description: "Slack webhook"
+    required: true
+  slack_color:
+    description: "color on the side of the message"
+    default: ${{ job.status }}
+    required: false
 outputs:
-  result:
-    description: "results"
-    value: "${{ steps.action.outputs.result }}"
+  user:
+    description: "github actor"
+    value: "${{ steps.map-id.outputs.user }}"
+  repo:
+    description: "Repository Name"
+    value: "${{ steps.map-id.outputs.repository }}"
 runs:
   using: "composite"
   steps:
-    - name: install cfn_nag_scan
-      id: install
+    - name: checkout slack mappings
+      id: checkout-slack-mappings
+      uses: actions/checkout@v2
+      with:
+        repository: CumulusDS/github-slack-user-mappings
+        path: var/slack
+        token: ${{ inputs.token }}
+    - name: map userid
+      id: map-id
       run: |
-        echo "::group::Title"
-        echo "some message"
+        userId=$(cat var/slack/slack.json | jq -r --arg user "${{ inputs.actor }}" '.users[] | select(.github | try contains($user)) | .slack')
+        echo "::set-output name=user::${userId}"
+        echo "::set-output name=repo::$((echo ${{ github.repository }}) | sed 's/^..........//')"
+      shell: bash
+    - name: get url
+      id: get-url
+      run: |
+        JOBS=$( \
+          curl -s -H 'Authorization: token ${{ inputs.token }}' \
+          -L https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs \
+        )
+        info=$( \
+          echo $JOBS | jq '.jobs[] | {name: .name, status: .status, conclusion: .conclusion, url: .html_url, steps: .steps}' \
+          | jq -s '.' \
+        )
+        results=$(echo $info | jq -r '.')
+        echo "::group::Jobs context (refined)"
+        echo ${results} | jq -r '.'
+        echo "::endgroup::"
+        echo "::group::Get job URL"
+        echo ${results} | jq -r --arg region ${{ inputs.region }} '.[] | select(.name | try contains($region)) | .html_url'
+        url=$( \
+          echo ${results} | \
+          jq -r --arg region ${{ inputs.region }} '.[] | select(.name | try contains($region)) | .url')
+        echo $url
+        echo "::set-output name=url::${url}"
         echo "::endgroup::"
       shell: bash
-    - name: Print Output
-      id: print
-      run: |
-        echo "${{ steps.action.outputs.result }}"
-      shell: bash
+    - name: Notify on failure
+      id: notify-on-failure
+      uses: rtCamp/action-slack-notify@v2
+      env:
+        SLACK_CHANNEL: "@${{ steps.map-id.outputs.user }}"
+        SLACK_USERNAME: "${{ steps.map-id.outputs.repo }}"
+        SLACK_ICON: "${{ inputs.icon }}"
+        SLACK_ICON_EMOJI: "${{ inputs.emoji }}"
+        SLACK_COLOR: "${{ inputs.slack_color }}"
+        MSG_MINIMAL: true
+        SLACK_TITLE: "${{ inputs.title }}"
+        SLACK_MESSAGE: |
+          Hello <@${{ steps.map-id.outputs.user }}>,
+          Removal of your stack in `${{ inputs.region }}` has failed!
+          <${{ steps.get-url.outputs.url }}|${{ inputs.service }}-${{ inputs.stage }}>
+        SLACK_FOOTER: ""
+        SLACK_WEBHOOK: ${{ inputs.slack_webhook }}
