@@ -30,7 +30,7 @@ inputs:
   title:
     description: "Slack message title"
     required: false
-    default: "Stack removal failed"
+    default: "Feature stack removal failed!"
   slack_webhook:
     description: "Slack webhook"
     required: true
@@ -73,20 +73,21 @@ runs:
         echo "GITHUB_RUN_ID ${GITHUB_RUN_ID}"
         echo "GITHUB_RUN_NUMBER ${GITHUB_RUN_NUMBER}"
 
-        RUN_CONTEXT=$( \
-          curl -s -H 'Authorization: token ${{ inputs.token }}' \
-          -L https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} \
-        )
-        echo "::group::Run context"
-        echo ${CONTEXT} | jq -r '.'
-        echo "::endgroup::"
-
         JOBS=$( \
           curl -s -H 'Authorization: token ${{ inputs.token }}' \
           -L https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs \
         )
         echo "::group::Job context (complete)"
         echo ${JOBS} | jq -r '.'
+        echo "::endgroup::"
+
+        info=$(
+          echo $JOBS | jq '.jobs[] | {name: .name, status: .status, conclusion: .conclusion, url: .html_url start: .started_at, steps: .steps}' \
+          | jq -s '.'
+        )
+        results=$(echo $info | jq -r '.')
+        echo "::group::Jobs context (refined)"
+        echo ${results} | jq -r '.'
         echo "::endgroup::"
       shell: bash
     - name: Notify on failure
