@@ -33,8 +33,7 @@ inputs:
     default: "Stack removal failed"
   slack_webhook:
     description: "Slack webhook"
-    required: false
-    default: "${{ secrets.SLACK_WEBHOOK }}"
+    required: true
 outputs:
   user:
     description: "github actor"
@@ -75,7 +74,7 @@ runs:
         SLACK_TITLE: "${{ inputs.title }}"
         SLACK_MESSAGE: |
           Hello <@$${{ steps.map-id.outputs.user }}>,
-          Removal of your stack in ${{ inputs.region }} has failed!
+          Removal of your stack in `${{ inputs.region }}` has failed!
           ${{ inputs.service }}-${{ inputs.stage }}
         SLACK_FOOTER: ""
         SLACK_WEBHOOK: ${{ inputs.slack_webhook }}
