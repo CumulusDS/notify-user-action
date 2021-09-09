@@ -95,7 +95,7 @@ runs:
         echo ${results} | jq -r --arg region ${{ inputs.region }} '.[] | select(.name | try contains($region)) | .html_url'
         url=$( \
           echo ${results} | \
-          jq -r --arg region ${{ inputs.region }} '.[] | select(.name | try contains($region)) | .html_url')
+          jq -r --arg region ${{ inputs.region }} '.[] | select(.name | try contains($region)) | .url')
         echo $url
         echo "::set-output name=url::${url}"
         echo "::endgroup::"
