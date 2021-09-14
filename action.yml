@@ -2,17 +2,17 @@ name: 'Notify User in Slack'
 description: 'Composite Action for slack notification'
 inputs:
   token:
-    description: "token with private registry access"
+    description: "Token with API access"
     required: true
   actor:
     description: "Github user to notify in slack"
     required: false
     default: ${GITHUB_ACTOR}
   service:
-    description: "The Service being deployed/removed"
+    description: "The service being deployed/removed"
     required: true
   stage:
-    description: "The Stage being deployed/removed"
+    description: "The stage being deployed/removed"
     required: true
     default: ${{ matrix.stage }}
   region:
@@ -62,26 +62,13 @@ runs:
         echo "::set-output name=user::${userId}"
         echo "::set-output name=repo::$((echo ${{ github.repository }}) | sed 's/^..........//')"
       shell: bash
-    - name: debug
-      id: debug
+    - name: get url
+      id: get-url
       run: |
-        GITHUB_CHECK_SUITE_ID=$( \
-          curl -s -H 'Authorization: token ${{ inputs.token }}' \
-          -L https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} | jq -r '.check_suite_id'
-        )
-
-        echo "GITHUB_CHECK_SUITE_ID: $GITHUB_CHECK_SUITE_ID"
-        echo "GITHUB_RUN_ID ${GITHUB_RUN_ID}"
-        echo "GITHUB_RUN_NUMBER ${GITHUB_RUN_NUMBER}"
-
         JOBS=$( \
           curl -s -H 'Authorization: token ${{ inputs.token }}' \
           -L https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs \
         )
-        echo "::group::Job context (complete)"
-        echo ${JOBS} | jq -r '.'
-        echo "::endgroup::"
-
         info=$( \
           echo $JOBS | jq '.jobs[] | {name: .name, status: .status, conclusion: .conclusion, url: .html_url, steps: .steps}' \
           | jq -s '.' \
@@ -90,7 +77,6 @@ runs:
         echo "::group::Jobs context (refined)"
         echo ${results} | jq -r '.'
         echo "::endgroup::"
-
         echo "::group::Get job URL"
         echo ${results} | jq -r --arg region ${{ inputs.region }} '.[] | select(.name | try contains($region)) | .html_url'
         url=$( \
@@ -114,6 +100,6 @@ runs:
         SLACK_MESSAGE: |
           Hello <@${{ steps.map-id.outputs.user }}>,
           Removal of your stack in `${{ inputs.region }}` has failed!
-          <${{ steps.debug.outputs.url }}|${{ inputs.service }}-${{ inputs.stage }}>
+          <${{ steps.get-url.outputs.url }}|${{ inputs.service }}-${{ inputs.stage }}>
         SLACK_FOOTER: ""
         SLACK_WEBHOOK: ${{ inputs.slack_webhook }}
