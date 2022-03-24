@@ -50,7 +50,7 @@ runs:
   steps:
     - name: checkout slack mappings
       id: checkout-slack-mappings
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: CumulusDS/github-slack-user-mappings
         path: var/slack
